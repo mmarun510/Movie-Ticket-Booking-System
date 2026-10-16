@@ -1,0 +1,236 @@
+package com.programfile.com;
+
+import java.util.*;
+ 
+//Custom Exception Handling
+class VotingException extends Exception {
+ public VotingException(String message) {
+     super(message);
+ }
+}
+
+class User {
+ private String username;  
+ private String password;
+
+ public User(String username, String password) {
+     this.username = username; 
+     this.password = password;
+ }
+
+ public String getUsername() 
+ { 
+	 return username;
+	 }
+ public String getPassword() 
+ { 
+	 return password; 
+	 }
+}
+
+class Candidate {
+ private String name;
+ private String department;
+
+ public Candidate(String name, String department) {
+     this.name = name;
+     this.department = department;
+ }
+
+ public String getName() 
+ { 
+	 return name;
+	 }
+ public String getDepartment()
+ {
+	 return department;
+	 }
+}
+
+// map
+class Election
+ {
+ private Map<String, User> userRegistry = new HashMap<>();
+ private Map<String, Boolean> votingStatusMap = new HashMap<>(); // Track if user voted
+ private Map<String, Integer> candidateVotesMap = new HashMap<>(); // Candidate name -> count
+ private List<Candidate> candidates = new ArrayList<>();
+ 
+ //user Register
+
+ public void registerUser(String username, String password) throws VotingException {
+     if (userRegistry.containsKey(username)) {
+         throw new VotingException("Registration Failed: Username already exists.");
+     }
+     User newUser = new User(username, password);
+     userRegistry.put(username, newUser);
+     votingStatusMap.put(username, false); // Default status: Not vote
+ }
+
+ //user login
+ 
+ public boolean loginUser(String username, String password) 
+ {
+     User user = userRegistry.get(username);
+     return user != null && user.getPassword().equals(password);
+  }
+
+ public void addCandidate(Candidate candidate) 
+ {
+     candidates.add(candidate);
+     candidateVotesMap.put(candidate.getName(), 0);
+ }
+
+ public List<Candidate> getCandidates() 
+  {
+     return candidates;
+ }
+
+ // voting
+ 
+ public void castVote(String username, String candidateName) throws VotingException {
+     if (!votingStatusMap.containsKey(username)) {
+         throw new VotingException("Authentication Error: User not found in tracking records.");
+     }
+     if (votingStatusMap.get(username)) {
+         throw new VotingException("Security Alert: You have already cast your vote! Duplicate voting is prohibited.");
+     }
+     if (!candidateVotesMap.containsKey(candidateName)) {
+         throw new VotingException("Invalid Selection: Candidate does not exist.");
+     }
+
+     // Atomically commit vote and update status
+     candidateVotesMap.put(candidateName, candidateVotesMap.get(candidateName) + 1);
+     votingStatusMap.put(username, true);
+ }
+
+ public void displayTotalVotes() {
+     System.out.println("\n--- Current Vote Distribution ---");
+     candidateVotesMap.forEach((candidate, votes) -> System.out.println("Candidate: " + candidate + " | Votes: " + votes));
+ }
+
+ public void displayResults() {
+     if (candidateVotesMap.isEmpty()) {
+         System.out.println("No candidate records found.");
+         return;
+     }
+
+     // Sort candidates based on votes 
+     
+     List<Map.Entry<String, Integer>> sortedList = new ArrayList<>(candidateVotesMap.entrySet()); //sorting index by index
+     sortedList.sort((e1, e2) -> e2.getValue().compareTo(e1.getValue())); //descending order 
+
+     System.out.println("\n=================================");
+     System.out.println("      ELECTION RESULTS       ");
+     System.out.println("=================================");
+     
+     Map.Entry<String, Integer> winner = sortedList.get(0); //highest at top
+     System.out.println("FINALIST (WINNER): " + winner.getKey() + " with " + winner.getValue() + " votes!");
+
+     if (sortedList.size() > 1) {
+         Map.Entry<String, Integer> runnerUp = sortedList.get(1);
+         System.out.println("RUNNER-UP         : " + runnerUp.getKey() + " with " + runnerUp.getValue() + " votes.");
+     } else {
+         System.out.println("RUNNER-UP         : No other contestants registered.");
+     }
+     System.out.println("=================================");
+ }
+}
+
+//--- Main 
+
+public class OnlineVotingSystem {
+ public static void main(String[] args) {
+     Election ele = new Election();
+     Scanner scanner = new Scanner(System.in);
+
+     ele.addCandidate(new Candidate("Siddarth", "Computer Science"));
+     ele.addCandidate(new Candidate("Yuvaraj", "Mechanical Eng"));
+     ele.addCandidate(new Candidate("Dilli Babu", "Electrical Eng"));
+
+     String currentUser = null;
+
+     while (true) {
+         System.out.println("\n=== CAMPUS DIGITAL VOTING SYSTEM ===");
+         if (currentUser == null) {
+             System.out.println("1. Register\n2. Login\n3. View Results (Admin View)\n4. Exit");
+         } else {
+             System.out.println("Logged in as: [" + currentUser + "]");
+             System.out.println("1. View Candidates & Cast Vote\n2. View Live Counts\n3. Logout");
+         }
+         System.out.print("Select an option: ");
+         
+         String choice = scanner.nextLine();
+
+         try {
+             if (currentUser == null) {
+                 switch (choice) {
+                     case "1":
+                         System.out.print("Enter structural Student ID (Username): ");
+                         String regUser = scanner.nextLine();
+                         System.out.print("Enter Password: ");
+                         String regPass = scanner.nextLine();
+                         ele.registerUser(regUser, regPass);
+                         System.out.println(" Registration successful! Please log in.");
+                         break;
+                     case "2":
+                         System.out.print("Enter Student ID: ");
+                         String loginUser = scanner.nextLine();
+                         System.out.print("Enter Password: ");
+                         String loginPass = scanner.nextLine();
+                         if (ele.loginUser(loginUser, loginPass)) {
+                             currentUser = loginUser;
+                             System.out.println(" Login Successful!");
+                         } else {
+                             System.out.println(" Invalid id or password . please check & Try again.");
+                         }
+                         break;
+                     case "3":
+                         ele.displayResults();
+                         break;
+                     case "4":
+                         System.out.println("Shutting down voting application terminal.");
+                         scanner.close();
+                         return;
+                     default:
+                         System.out.println("Invalid selection.");
+                 }
+             } else {
+                 switch (choice) {
+                     case "1":
+                         List<Candidate> list = ele.getCandidates();
+                         System.out.println("\n--- Official Candiates ---");
+                         for (int i = 0; i < list.size(); i++) {
+                             Candidate c = list.get(i);
+                             System.out.println((i + 1) + ". " + c.getName() + " (" + c.getDepartment() + ")");
+                         }
+                         System.out.print("Enter the number of your chosen candidate: ");
+                         int index = Integer.parseInt(scanner.nextLine()) - 1; 
+                         
+                         if (index >= 0 && index < list.size()) {
+                             String selectedCandidate = list.get(index).getName();
+                             ele.castVote(currentUser, selectedCandidate);
+                             System.out.println(" Vote successfully cast for " + selectedCandidate + "!");
+                         } else
+                         {
+                             System.out.println(" Choice out of bounds.");
+                         }
+                         break;
+                     case "2":
+                         ele.displayTotalVotes();
+                         break;
+                     case "3":
+                         System.out.println("Logged out cleanly.");
+                         currentUser = null;
+                         break;
+                     default:
+                         System.out.println("Invalid choice.");
+                 }
+             }
+         } catch (VotingException e) {
+             System.out.println("\n [VOTING ERROR] " + e.getMessage());
+         } catch (NumberFormatException e) {
+             System.out.println("\n [INPUT ERROR] Please enter a valid index number."); 
+         }
+     }
+ }
+}
